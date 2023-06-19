@@ -153,6 +153,12 @@ class RotateProxyMiddleware:
             new_request = request.copy()
             new_request.dont_filter = True  # Disable duplicate request filtering
             return new_request
+        elif response.status == 307:
+            self.remove_current_proxy()
+            self.current_proxy = self.get_random_proxy()
+            new_request = request.copy()
+            new_request.dont_filter = True  # Disable duplicate request filtering
+            return new_request
         return response
 
     def process_exception(self, request, exception, spider):

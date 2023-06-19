@@ -72,7 +72,7 @@ class SpiderSpider(scrapy.Spider):
             yield Request(url=review_url, callback=self.review_multiple_parse)
 
         else:
-            yield Request(url=response.url, callback=self.review_single_parse)
+            yield Request(url=response.url, callback=self.review_single_parse, dont_filter=True)
 
     def review_multiple_parse(self, response, **kwargs):
 
@@ -92,8 +92,7 @@ class SpiderSpider(scrapy.Spider):
 
     def review_single_parse(self, response: Request, **kwargs):
 
-        review_list = response.xpath('//*[@id="component-reviewdisplay"]/section[@class="col-container"]/div['
-                                     '@class="review-data kl-hidden"]')
+        review_list = response.xpath('//section[@class="col-container"]/div[@class="review-data kl-hidden"]')
 
         for review in review_list:
             item = WebscrapyItem()
@@ -101,12 +100,13 @@ class SpiderSpider(scrapy.Spider):
                                                   'l-review-container m-review-resume m-review-resume--desktop '
                                                   'js-review-resume-container"]//div['
                                                   '@class="m-review-resume__designation"]/p['
-                                                  '@class="m-review-resume__designation-title"]/text()')[0].extract() or 'N/A'
+                                                  '@class="m-review-resume__designation-title"]/text()').extract_first() \
+                                   or response.xpath('//*[@id="product-name"]/text()').extract_first()
             item['review_id'] = review.xpath('./@data-review-id')[0].extract() or 'N/A'
             item['customer_name'] = review.xpath('./div[@class="data-review-nickname"]/text()').extract() or ['N/A']
             item['customer_rating'] = review.xpath('./div[@class="data-review-rating"]/text()')[0].extract() or 'N/A'
             item['customer_date'] = review.xpath('./div[@class="data-review-date"]/text()')[0].extract() or 'N/A'
-            item['customer_review'] = review.xpath('./div[@class="data-review-text"]/text()')[0].extract() or 'N/A'
+            item['customer_review'] = review.xpath('./div[@class="data-review-text"]/text()').extract() or ['N/A']
             item['customer_support'] = review.xpath('./div[@class="data-review-useful"]/text()')[0].extract() or 'N/A'
             item['customer_disagree'] = review.xpath('./div[@class="data-review-not-useful"]/text()')[0].extract() or 'N/A'
 

@@ -3,7 +3,6 @@
 # Author: Eddie
 # Date: 18/06/2023
 """
-
 import requests
 
 proxy_url = 'https://www.stormproxies.cn/web_v1/ip/get-ip?app_key=64318690cd8b0c33d643b078d3974ebf&pt=9&num=20&cc=GB&protocol=1&format=txt&nr=%5Cr%5Cn'

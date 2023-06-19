@@ -32,7 +32,7 @@ class ExcelPipeline(object):
         customer_name = item.get('customer_name', '')[0]
         customer_rating = item.get('customer_rating', '')
         customer_date = item.get('customer_date', '')
-        customer_review = item.get('customer_review', '')
+        customer_review = item.get('customer_review', '')[0]
         customer_support = item.get('customer_support', '')
         customer_disagree = item.get('customer_disagree', '')
 
