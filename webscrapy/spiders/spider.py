@@ -1,114 +1,113 @@
 """
 Project: Web scraping for customer reviews
 Author: Hào Cui
-Date: 06/16/2023
+Date: 06/17/2023
 """
-import json
-import re
 
 import scrapy
 from scrapy import Request
-
+import re
 from webscrapy.items import WebscrapyItem
 
 
 class SpiderSpider(scrapy.Spider):
     name = "spider"
-    allowed_domains = ["www.castorama.fr", "api.bazaarvoice.com"]
-    headers = {}  #
+    allowed_domains = ["www.leroymerlin.fr"]
 
     def start_requests(self):
-        keywords = ['DeWalt', 'Black+and+Decker', 'Stanley', 'Craftsman', 'Porter-Cable', 'Bostitch', 'Irwin+Tools',
-                    'Lenox']
+        # keywords = ['DeWalt', 'Black+and+Decker', 'Stanley', 'Craftsman', 'Porter-Cable', 'Bostitch', 'Irwin+Tools',
+        #             'Lenox']
+        keywords = ['dewalt']
         # company = 'Stanley Black and Decker'
 
         # from search words to generate product_urls
         for keyword in keywords:
             push_key = {'keyword': keyword}
-            search_url = f'https://www.castorama.fr/search?term={keyword}'
+
+            search_url = f'https://www.leroymerlin.fr/produits/marques/{keyword}/?src=brd&query={keyword}'
 
             yield Request(
                 url=search_url,
                 callback=self.parse,
-                cb_kwargs=push_key,
-                # meta={'proxy':'socks5://127.0.0.1:10110'},
-                # headers=self.headers
+                cb_kwargs={**push_key},
             )
 
     def parse(self, response, **kwargs):
 
         # Extract the pages of product_urls
-        page = response.xpath('//p[@data-test-id="search-options-total-results"]/text()')[0].extract()
-        page_number = int(''.join(filter(str.isdigit, page)))
-        pages = (page_number // 24) + 1
+        page = response.xpath(
+            '//*[@id="component-productfamilypage"]//div[@class="mc-pagination__field"]/select/option[1]/text()')[
+            0].extract()
+        pages = [int(num) for num in page.split() if num.isdigit()][-1]
 
         # Based on pages to build product_urls
         keyword = kwargs['keyword']
-        product_urls = [f'https://www.castorama.fr/search?page={page}&term={keyword}' for page
-                        in range(1, pages+1)]
+        # product_urls = [f'https://www.leroymerlin.fr/produits/marques/{keyword}/?p={page}' for page
+        #                 in range(1, pages+1)]
+
+        # test page = 1
+        product_urls = [f'https://www.leroymerlin.fr/produits/marques/{keyword}/?p={page}' for page
+                        in range(1, 2)]
 
         for product_url in product_urls:
             yield Request(url=product_url, callback=self.product_parse)
 
     def product_parse(self, response: Request, **kwargs):
 
-        product_list = response.xpath('//*[@id="content"]//main//ul/li')
+        product_list = response.xpath('//*[@id="component-productfamilypage"]//ul[@class="l-resultsList '
+                                      'col-container-inner js-list-products"]/li')
 
         for product in product_list:
-            product_href = product.xpath('.//div[@data-test-id="product-panel"]/a/@href')[0].extract()
-            product_detailed_url = f'https://www.castorama.fr{product_href}'
-            yield Request(url=product_detailed_url, callback=self.product_detailed_parse)
+            product_href = product.xpath('.//article//a/@href')[0].extract()
+            product_detailed_url = f'https://www.leroymerlin.fr{product_href}'
+            yield Request(url=product_detailed_url, callback=self.product_detailed_parse,)
 
     def product_detailed_parse(self, response, **kwargs):
 
-        product_id = response.xpath('.//*[@id="product-details"]//td[@data-test-id="product-ean-spec"]/text()')[
-            0].extract()
+        review_href = response.xpath('//*[@id="component-displaycomp"]//section[@class="col-container"]/div['
+                                     '@class="col-12 m-review__link-dedicated-page"]/a/@href').extract()
 
-        # Product reviews url
-        product_detailed_href = f'https://api.bazaarvoice.com/data/reviews.json?resource=reviews&action' \
-                                f'=REVIEWS_N_STATS&filter' \
-                                f'=productid%3Aeq%3A{product_id}&filter=contentlocale%3Aeq%3Ade*%2Cen*%2Ces*%2Cit' \
-                                f'*%2Cpt*%2Cro*%2Cfr_FR' \
-                                f'%2Cfr_FR&filter=isratingsonly%3Aeq%3Afalse&filter_reviews=contentlocale%3Aeq%3Ade' \
-                                f'*%2Cen*%2Ces*%2Cit' \
-                                f'*%2Cpt*%2Cro*%2Cfr_FR%2Cfr_FR&include=authors%2Cproducts&filteredstats=reviews' \
-                                f'&Stats=Reviews&limit=8' \
-                                f'&offset=0&sort=submissiontime%3Adesc&passkey' \
-                                f'=cad9K7m2kxo5wBH0ObPjr6uk0EFHk2o06sOp4UMIhBNBM&apiversion' \
-                                f'=5.5&displaycode=5678-fr_fr '
-
-        if product_detailed_href:
-            yield Request(url=product_detailed_href, callback=self.review_parse)
-
-    def review_parse(self, response: Request, **kwargs):
-
-        datas = json.loads(response.body)
-
-        if datas:
-            limit_number = datas.get('Limit')
-            offset_number = datas.get('Offset') + limit_number
-            total_number = datas.get('TotalResults')
-
-            for i in range(0, limit_number):
-                try:
-                    item = WebscrapyItem()
-                    item['review_id'] = datas.get('Results')[i].get('Id')
-                    item['product_name'] = datas.get('Results')[i].get('ProductId')
-                    item['customer_name'] = datas.get('Results')[i].get('UserNickname')
-                    item['customer_rating'] = datas.get('Results')[i].get('Rating')
-                    item['customer_date'] = datas.get('Results')[i].get('SubmissionTime')
-                    item['customer_review'] = datas.get('Results')[i].get('ReviewText')
-                    item['customer_support'] = datas.get('Results')[i].get('TotalPositiveFeedbackCount')
-
-                    yield item
-                except Exception as e:
-                    break
-
-            if offset_number < total_number:
-                next_page = re.sub(r'offset=\d+', f'offset={offset_number}', response.url)
-                yield Request(url=next_page, callback=self.review_parse)
-            else:
-                pass
+        if review_href:
+            review_url = f'https://www.leroymerlin.fr{review_href[0]}'
+            yield Request(url=review_url, callback=self.review_multiple_parse)
 
         else:
-            pass
+            yield Request(url=response.url, callback=self.review_single_parse)
+
+    def review_multiple_parse(self, response, **kwargs):
+
+        page_str = response.xpath('//*[@id="component-reviewdisplay"]//section[@class="col-container"]//div['
+                                  '@class="mc-pagination__field"]/select/option[@value="1"]/text()')[0].extract()
+        page_number = [int(num) for num in page_str.split() if num.isdigit()][-1]
+
+        review_single_href = response.xpath('//*[@id="component-reviewdisplay"]//section['
+                                            '@class="col-container"]/div/nav/a[@title="Page '
+                                            'suivante"]/@href').extract()
+        review_single_url = f'https://www.leroymerlin.fr{review_single_href[0]}'
+
+        for i in range(1, page_number + 1):
+            review_single_detailed_url = re.sub(r'\?p=(\d+)', f'&page={i}#component-reviewdisplay', review_single_url)
+
+            yield Request(url=review_single_detailed_url, callback=self.review_single_parse)
+
+    def review_single_parse(self, response: Request, **kwargs):
+
+        review_list = response.xpath('//*[@id="component-reviewdisplay"]/section[@class="col-container"]/div['
+                                     '@class="review-data kl-hidden"]')
+
+        for review in review_list:
+            item = WebscrapyItem()
+            item['product_name'] = response.xpath('//div[@id="component-reviewdisplay"]/section[@class="col-container '
+                                                  'l-review-container m-review-resume m-review-resume--desktop '
+                                                  'js-review-resume-container"]//div['
+                                                  '@class="m-review-resume__designation"]/p['
+                                                  '@class="m-review-resume__designation-title"]/text()')[0].extract() or 'N/A'
+            item['review_id'] = review.xpath('./@data-review-id')[0].extract() or 'N/A'
+            item['customer_name'] = review.xpath('./div[@class="data-review-nickname"]/text()').extract() or ['N/A']
+            item['customer_rating'] = review.xpath('./div[@class="data-review-rating"]/text()')[0].extract() or 'N/A'
+            item['customer_date'] = review.xpath('./div[@class="data-review-date"]/text()')[0].extract() or 'N/A'
+            item['customer_review'] = review.xpath('./div[@class="data-review-text"]/text()')[0].extract() or 'N/A'
+            item['customer_support'] = review.xpath('./div[@class="data-review-useful"]/text()')[0].extract() or 'N/A'
+            item['customer_disagree'] = review.xpath('./div[@class="data-review-not-useful"]/text()')[0].extract() or 'N/A'
+
+            yield item

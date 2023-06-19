@@ -6,16 +6,15 @@
 from scrapy import signals, Request
 import random
 from webscrapy.settings import USER_AGENT_LIST
+from scrapy.exceptions import IgnoreRequest, NotConfigured
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
 
 
 def get_cookies_dict():
-    cookies_str = 'session-id=262-5810110-4651945; ubid-acbuk=257-6978771-9482927; lc-acbuk=en_GB; ' \
-                  'av-timezone=Europe/London; ' \
-                  'session-token=DOVZpTftMkUoO5VyBKks7lmDekubDW0tOJ/Y8RFlRCDcQNMY9anb57YIE61uvnNfAPAU66EyGAc8DqO' \
-                  '/ZMK3goltzXQk74bkMIZ3blfypkZD9i4g5AO2dfs6WUwoHB4od8kwqIOj6ES9kJW0weMmjYApvtAIk6gWp5CjVLJ47uP0nRCUiTs8G5JIMsqjwxfHtGnWSqgR2I+lwltG3l0/liTbKeUAkXFyLxSQr9zz0ZafpcrzIKJceuTtwMyRk8sD; x-acbuk="shubALQENXQDItWhyI3ywt5EDiCNBbXUzZxfVHH9lWROOPcIA1q?BbuwaQt63DTE"; at-acbuk=Atza|IwEBIFEhoQBEgsl13zRH7tbqZZsLkFdSErJL6Jpi6Ifp9c_RyZ1tOhe7IfKF6nnJIh4hUThrCCZEVx6oYY0G15ffaTbjgdGYLF135v9-KfnBvEYFIpug_gBh3M1fdnB6lZZD8XTNQz-jsWttVgTtHuEzksP1pNtNsThE4BRKD4DtFSgu34T2Q5eImhkKWwlSTfSYcE1XeAhMnuxcQBcuS-TRVIc5NXki7U0ydlVIKkGvCyZKRg; sess-at-acbuk="+dmR+g8Ip+sCWW69DkUyjUV8hffpBaRX/184ZeqVZPk="; sst-acbuk=Sst1|PQH59LJBGdPDpiPYay9TQjKgCTur4B_PjtkbLg3tmdmH6cMrIfsn-19grn3avly8z5lHqWBXUDrgslHmXWeLxndLGO-_TnF9FBKniR-hLl-W7O7kH0vpUajOjSAEJZUvTND9zvrxQP375bqjQyzEiGM-nVmoeQ4l9pv2EelRBehMRHyMjebmhyz5kVmW5-wZo3ui_7ZIoOIGw_nUBzx-s64hnjZ_Lpl9lN1fSst5eCzgt3nK74MqKlowJkghFOAoHFjU5nsP2vmzyq6GEgxUVOG9MIABXnggOQRzXyw9wJwNWtc; session-id-time=2082787201l; i18n-prefs=GBP; csm-hit=tb:XWX730Q202Q0YG44CV43+s-XWX730Q202Q0YG44CV43|1686670523540&t:1686670523540&adb:adblk_no '
+    cookies_str = 'cookiesMigrated=1; _pcid=%7B%22browserId%22%3A%22lj1im99t2nml49kx%22%2C%22_t%22%3A%22lypxjqm0%7Clj1im9a0%22%7D; _pctx=%7Bu%7DN4IgrgzgpgThIC4B2YA2qA05owMoBcBDfSREQpAeyRCwgEt8oBJAE0RXSwH18zUAngAcAHgCsAjgFsAjAB9UYmfSkBOQjJABfIA; OptanonAlertBoxClosed=2023-06-18T14:20:54.315Z; pa_privacy=%22optin%22; _scid=da4dbe1b-4420-4763-bfe0-5e51746de001; _cs_c=1; vlz_uid=KDiCJSi1hYVZyed7I8W88hgx7EWHWfFv; _adv_ses.lmf9ehdpz.dff7=d26ddfff80354706; _gcl_au=1.1.350053527.1687098056; mics_vid=38415970260; mics_lts=1687098056780; ab_cat=A-D; ab_header=newheader; search_ab_version=1; _pin_unauth=dWlkPU5EWXpOVFF3WmpZdE1EQmtPQzAwTnpNNUxXSTVZak10WWpZeVpUaGlPVEU1TURZdw; optimizelyEndUserId=oeu1687098142582r0.1461759418183104; _vzbl_uid=H0qSHtIcXRjGUScUHb25U; iadvize-5601-consent=true; iadvize-5601-vuid=525dc25341acd9583c2e2d49ac9e2391648f135c0116c; lm-csrf=Abfa2+DFR/sZM8bC6d1T90LREJ64mXNtc2VdZkc9zm8=.1687099466217.lyWs6FHMOXymwWy1GzgVOVIg7u9kLHbDyZ21JY2VEEA=; OptanonConsent=isGpcEnabled=0&datestamp=Sun+Jun+18+2023+15%3A45%3A13+GMT%2B0100+(%E8%8B%B1%E5%9B%BD%E5%A4%8F%E4%BB%A4%E6%97%B6%E9%97%B4)&version=202303.2.0&browserGpcFlag=0&isIABGlobal=false&hosts=&genVendors=&consentId=153d4df6-abad-4a30-9599-ec2f0ed74045&interactionCount=1&landingPath=NotLandingPage&groups=C0001%3A1%2CC0002%3A1%2CC0003%3A1%2CC0004%3A1&geolocation=GB%3BENG&AwaitingReconsent=false; _cs_id=d26424c0-982a-a7d5-c92d-4486968c99db.1687098055.2.1687099513.1687098202.1618220803.1721262055101; _cs_s=16.5.0.1687101313366; _uetsid=56314b000de311ee9a289b052811f268; _uetvid=56320f700de311eea3c8c33190c1e7b1; _scid_r=da4dbe1b-4420-4763-bfe0-5e51746de001; _adv_id.lmf9ehdpz.dff7=0083a7111ae54d55.1687098055.1.1687099514.1687098055.; datadome=0L98brMze3r9erulg16hVc8QDYxx3MhbKLTItf1fa6X9QbOpHO0qAwdz_I4tLF2S5RT~ljVYfliGa52JvJzG3~82m_N4r50i2a~nZrJstNuki5fT3~_cNdrAVrzkHmzx; _dd_s=rum=0&expire=1687100416756'
+
     cookies_dict = {}
     for item in cookies_str.split('; '):
         key, value = item.split('=', maxsplit=1)
@@ -122,3 +121,68 @@ class WebscrapyDownloaderMiddleware:
 
     def spider_opened(self, spider):
         spider.logger.info("Spider opened: %s" % spider.name)
+
+class RotateProxyMiddleware:
+    def __init__(self, proxies_file):
+        self.proxies_file = proxies_file
+        self.proxies = self.load_proxies()
+        self.current_proxy = None
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        proxies_file = crawler.settings.get('PROXIES_FILE')
+        return cls(proxies_file)
+
+    def load_proxies(self):
+        with open(self.proxies_file, 'r') as file:
+            proxies = file.read().splitlines()
+        return proxies
+
+    def process_request(self, request, spider):
+        if not self.current_proxy:
+            self.current_proxy = self.get_random_proxy()
+
+        request.meta['proxy'] = self.current_proxy
+        print('current_proxy')
+        print(self.current_proxy)
+
+    def process_response(self, request, response, spider):
+        if response.status == 403:
+            self.remove_current_proxy()
+            self.current_proxy = self.get_random_proxy()
+            new_request = request.copy()
+            new_request.dont_filter = True  # Disable duplicate request filtering
+            return new_request
+        return response
+
+    def process_exception(self, request, exception, spider):
+        if isinstance(exception, IgnoreRequest):
+            # Handle IgnoreRequest exceptions
+            if getattr(exception, 'response', None) is not None:
+                return self.process_response(request, exception.response, spider)
+            else:
+                # IgnoreRequest without a response, re-raise the exception
+                raise exception
+        elif isinstance(exception, NotConfigured):
+            # NotConfigured exception, re-raise it
+            raise exception
+        else:
+            # Handle other exceptions
+            self.remove_current_proxy()
+            self.current_proxy = self.get_random_proxy()
+            new_request = request.copy()
+            new_request.dont_filter = True  # Disable duplicate request filtering
+            return new_request
+
+    def get_random_proxy(self):
+        if not self.proxies:
+            self.proxies = self.load_proxies()  # Reload proxies from the file if the list is empty
+        return random.choice(self.proxies)
+
+    def remove_current_proxy(self):
+        if self.current_proxy in self.proxies:
+            self.proxies.remove(self.current_proxy)
+
+
+
+
