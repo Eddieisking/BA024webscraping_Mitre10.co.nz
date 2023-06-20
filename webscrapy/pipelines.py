@@ -24,15 +24,15 @@ class ExcelPipeline(object):
         pass
 
     def close_spider(self, spider):
-        self.wb.save('LeroyMerlin.xlsx')
+        self.wb.save('Mitre10.xlsx')
 
     def process_item(self, item, spider):
         review_id = item.get('review_id', '')
         product_name = item.get('product_name', '')
-        customer_name = item.get('customer_name', '')[0]
+        customer_name = item.get('customer_name', '')
         customer_rating = item.get('customer_rating', '')
         customer_date = item.get('customer_date', '')
-        customer_review = item.get('customer_review', '')[0]
+        customer_review = item.get('customer_review', '')
         customer_support = item.get('customer_support', '')
         customer_disagree = item.get('customer_disagree', '')
 
