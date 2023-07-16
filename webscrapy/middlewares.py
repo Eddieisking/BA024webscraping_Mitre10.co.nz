@@ -7,6 +7,7 @@ from scrapy import signals, Request
 import random
 from webscrapy.settings import USER_AGENT_LIST
 from scrapy.exceptions import IgnoreRequest, NotConfigured
+import datetime
 
 # useful for handling different item types with a single interface
 from itemadapter import is_item, ItemAdapter
@@ -192,7 +193,7 @@ class WebscrapyDownloaderMiddleware:
 """In the following code, just need to change self.current_proxy to use new proxy"""
 class RotateProxyMiddleware:
     def __init__(self):
-        self.current_proxy = "http://storm-stst123_area-GB:123123@proxy.stormip.cn:1000"
+        self.current_proxy = "http://storm-stst123_area-NZ:123123@proxy.stormip.cn:1000"
         self.max_retries = 3
 
     @classmethod
@@ -201,9 +202,10 @@ class RotateProxyMiddleware:
 
     def process_request(self, request, spider):
         request.meta['proxy'] = self.current_proxy
-        print('current_proxy')
-        print(self.current_proxy)
-
+        # print('current_proxy')
+        # print(self.current_proxy)
+        current_time = datetime.datetime.now()
+        print(current_time)
     def process_response(self, request, response, spider):
         if response.status == 403:
             retries = request.meta.get('retry_times', 0)

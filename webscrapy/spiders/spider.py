@@ -44,19 +44,17 @@ class SpiderSpider(scrapy.Spider):
 
         # Based on pages to build product_urls
         keyword = kwargs['keyword']
-        # test page = 1
         product_urls = [f'https://www.mitre10.co.nz/shop/search?q={keyword}&cmsPage=0&page={page}&inStockSelectedStore=false&inStockNationwide=false' for page
-                        in range(0, pages + 1)]
+                        in range(0, pages)]
 
         for product_url in product_urls:
             yield Request(url=product_url, callback=self.product_parse)
 
     def product_parse(self, response: Request, **kwargs):
-
         product_list = response.xpath('/html/body//div[@class="container"]/div[@class="row"]//div[@unbxdattr="product"]')
-        product_name = response.xpath('//span[@class="product--title"]/text()')[0].extract()
-        for product in product_list:
 
+        for product in product_list:
+            product_name = product.xpath('.//span[@class="product--name"]/text()')[0].extract()
             product_sku = product.xpath('./@data-sku')[0].extract()
             product_reviews_url = f'https://api.bazaarvoice.com/data/batch.json?passkey' \
                                   f'=caWPwgJ2pghd4RhrgktdyVmJ4O5Znc6f8osLEjGCseuyY&apiversion=5.5&displaycode=14909' \
@@ -95,7 +93,7 @@ class SpiderSpider(scrapy.Spider):
             try:
                 item['review_id'] = results[i].get('Id', 'N/A')
                 item['product_name'] = product_name
-                item['customer_name'] = results[i].get('UserNickname', 'N/A')
+                item['customer_name'] = results[i].get('UserNickname', 'N/A') if results[i].get('UserNickname', 'N/A') else 'Ananymous'
                 item['customer_rating'] = results[i].get('Rating', 'N/A')
                 item['customer_date'] = results[i].get('SubmissionTime', 'N/A')
                 item['customer_review'] = results[i].get('ReviewText', 'N/A')
