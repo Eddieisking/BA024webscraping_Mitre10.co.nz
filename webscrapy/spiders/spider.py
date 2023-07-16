@@ -18,13 +18,12 @@ class SpiderSpider(scrapy.Spider):
     allowed_domains = ["www.mitre10.co.nz", "api.bazaarvoice.com"]
 
     def start_requests(self):
-        # keywords = ['DeWalt', 'Black+and+Decker', 'Stanley', 'Craftsman', 'Porter-Cable', 'Bostitch', 'Irwin+Tools',
-        #             'Lenox']
-        keywords = ['dewalt']
+        # keywords = ['dewalt', 'Stanley', 'Black+Decker', 'Craftsman', 'Porter-Cable', 'Bostitch', 'Facom', 'MAC Tools', 'Vidmar', 'Lista', 'Irwin Tools', 'Lenox', 'Proto', 'CribMaster', 'Powers Fasteners', 'cub-cadet', 'hustler', 'troy-bilt', 'rover', 'BigDog Mower', 'MTD']
+        exist_keywords = ['dewalt', 'stanley', 'Black+Decker', 'Craftsman', 'Irwin Tools', 'Lenox']
         # company = 'Stanley Black and Decker'
 
         # from search words to generate product_urls
-        for keyword in keywords:
+        for keyword in exist_keywords:
             push_key = {'keyword': keyword}
 
             search_url = f'https://www.mitre10.co.nz/shop/search?text={keyword}&q={keyword}'
@@ -45,11 +44,9 @@ class SpiderSpider(scrapy.Spider):
 
         # Based on pages to build product_urls
         keyword = kwargs['keyword']
-        # product_urls = [f'https://www.mitre10.co.nz/shop/search?q={keyword}&cmsPage=0&page={page}&inStockSelectedStore=false&inStockNationwide=false' for page in range(0, pages)]
-
         # test page = 1
         product_urls = [f'https://www.mitre10.co.nz/shop/search?q={keyword}&cmsPage=0&page={page}&inStockSelectedStore=false&inStockNationwide=false' for page
-                        in range(0, 1)]
+                        in range(0, pages + 1)]
 
         for product_url in product_urls:
             yield Request(url=product_url, callback=self.product_parse)
@@ -57,7 +54,7 @@ class SpiderSpider(scrapy.Spider):
     def product_parse(self, response: Request, **kwargs):
 
         product_list = response.xpath('/html/body//div[@class="container"]/div[@class="row"]//div[@unbxdattr="product"]')
-
+        product_name = response.xpath('//span[@class="product--title"]/text()')[0].extract()
         for product in product_list:
 
             product_sku = product.xpath('./@data-sku')[0].extract()
@@ -71,9 +68,10 @@ class SpiderSpider(scrapy.Spider):
                                   f'&filter_reviewcomments.q0=contentlocale%3Aeq%3Aen*%2Cen_NZ&filter_comments.q0' \
                                   f'=contentlocale%3Aeq%3Aen*%2Cen_NZ&limit.q0=8&offset.q0=0&limit_comments.q0=3 '
 
-            yield Request(url=product_reviews_url, callback=self.review_single_parse)
+            yield Request(url=product_reviews_url, callback=self.review_single_parse, meta={'product_name': product_name})
 
     def review_single_parse(self, response: Request, **kwargs):
+        product_name = response.meta['product_name']
         datas = json.loads(response.body)
         batch_results = datas.get('BatchedResults', {})
 
@@ -96,7 +94,7 @@ class SpiderSpider(scrapy.Spider):
 
             try:
                 item['review_id'] = results[i].get('Id', 'N/A')
-                item['product_name'] = results[i].get('ProductId', 'N/A')
+                item['product_name'] = product_name
                 item['customer_name'] = results[i].get('UserNickname', 'N/A')
                 item['customer_rating'] = results[i].get('Rating', 'N/A')
                 item['customer_date'] = results[i].get('SubmissionTime', 'N/A')
@@ -112,5 +110,5 @@ class SpiderSpider(scrapy.Spider):
         if (offset_number + limit_number) < total_number:
             offset_number += limit_number
             next_page = re.sub(r'limit.q0=\d+&offset.q0=\d+', f'limit.q0={30}&offset.q0={offset_number}', response.url)
-            yield Request(url=next_page, callback=self.review_single_parse)
+            yield Request(url=next_page, callback=self.review_single_parse, meta={'product_name': product_name})
 
