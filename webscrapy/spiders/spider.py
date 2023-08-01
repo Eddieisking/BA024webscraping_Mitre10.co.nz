@@ -19,7 +19,7 @@ class SpiderSpider(scrapy.Spider):
 
     def start_requests(self):
         # keywords = ['dewalt', 'Stanley', 'Black+Decker', 'Craftsman', 'Porter-Cable', 'Bostitch', 'Facom', 'MAC Tools', 'Vidmar', 'Lista', 'Irwin Tools', 'Lenox', 'Proto', 'CribMaster', 'Powers Fasteners', 'cub-cadet', 'hustler', 'troy-bilt', 'rover', 'BigDog Mower', 'MTD']
-        exist_keywords = ['dewalt', 'stanley', 'Black+Decker', 'Craftsman', 'Irwin Tools', 'Lenox']
+        exist_keywords = ['dewalt', 'stanley', 'Black+Decker']
         # company = 'Stanley Black and Decker'
 
         # from search words to generate product_urls
@@ -35,7 +35,6 @@ class SpiderSpider(scrapy.Spider):
             )
 
     def parse(self, response, **kwargs):
-
         # Extract the pages of product_urls
         page_string = response.xpath('//div[@class="result-count"]/text()')[0].get()
         numbers = re.findall(r'\d+', page_string)
@@ -56,20 +55,46 @@ class SpiderSpider(scrapy.Spider):
         for product in product_list:
             product_name = product.xpath('.//span[@class="product--name"]/text()')[0].extract()
             product_sku = product.xpath('./@data-sku')[0].extract()
-            product_reviews_url = f'https://api.bazaarvoice.com/data/batch.json?passkey' \
-                                  f'=caWPwgJ2pghd4RhrgktdyVmJ4O5Znc6f8osLEjGCseuyY&apiversion=5.5&displaycode=14909' \
-                                  f'-en_nz&resource.q0=reviews&filter.q0=isratingsonly%3Aeq%3Afalse&filter.q0' \
-                                  f'=productid%3Aeq%3A' \
-                                  f'{product_sku}&filter.q0=contentlocale%3Aeq%3Aen*%2Cen_NZ&sort.q0=submissiontime' \
-                                  f'%3Adesc&stats.q0=reviews&filteredstats.q0=reviews&include.q0=authors%2Cproducts' \
-                                  f'%2Ccomments&filter_reviews.q0=contentlocale%3Aeq%3Aen*%2Cen_NZ' \
-                                  f'&filter_reviewcomments.q0=contentlocale%3Aeq%3Aen*%2Cen_NZ&filter_comments.q0' \
-                                  f'=contentlocale%3Aeq%3Aen*%2Cen_NZ&limit.q0=8&offset.q0=0&limit_comments.q0=3 '
+            # product_brand = product.xpath('.//span[@class="product--brand"]/text()')[0].extract()
+            product_href = product.xpath('.//a[@class="product-link"]/@href')[0].extract()
+            product_link = f'https://www.mitre10.co.nz' + product_href
 
-            yield Request(url=product_reviews_url, callback=self.review_single_parse, meta={'product_name': product_name})
+            yield Request(url=product_link, callback=self.product_detail_parse, meta={'product_name': product_name, 'product_sku':product_sku})
+
+    def product_detail_parse(self,  response: Request, **kwargs):
+        product_name = response.meta['product_name']
+        product_sku = response.meta['product_sku']
+
+        product_detail = response.xpath('//div[@class="tabbody spec-body"]//div[@class="spec-item"]')
+        product_brand = 'N/A'
+        product_model = 'N/A'
+
+        for product in product_detail:
+            attr = product.xpath('./div[@class="attr"]/text()')[0].extract()
+            value = product.xpath('./div[@class="value"]/text()')[0].extract()
+
+            if attr == "Brand Name":
+                product_brand = value if value else 'N/A'
+            elif attr == 'Model Number':
+                product_model = value if value else 'N/A'
+
+        product_reviews_url = f'https://api.bazaarvoice.com/data/batch.json?passkey' \
+                              f'=caWPwgJ2pghd4RhrgktdyVmJ4O5Znc6f8osLEjGCseuyY&apiversion=5.5&displaycode=14909' \
+                              f'-en_nz&resource.q0=reviews&filter.q0=isratingsonly%3Aeq%3Afalse&filter.q0' \
+                              f'=productid%3Aeq%3A' \
+                              f'{product_sku}&filter.q0=contentlocale%3Aeq%3Aen*%2Cen_NZ&sort.q0=submissiontime' \
+                              f'%3Adesc&stats.q0=reviews&filteredstats.q0=reviews&include.q0=authors%2Cproducts' \
+                              f'%2Ccomments&filter_reviews.q0=contentlocale%3Aeq%3Aen*%2Cen_NZ' \
+                              f'&filter_reviewcomments.q0=contentlocale%3Aeq%3Aen*%2Cen_NZ&filter_comments.q0' \
+                              f'=contentlocale%3Aeq%3Aen*%2Cen_NZ&limit.q0=8&offset.q0=0&limit_comments.q0=3 '
+
+        yield Request(url=product_reviews_url, callback=self.review_single_parse, meta={'product_name': product_name, 'product_model':product_model, 'product_brand':product_brand})
 
     def review_single_parse(self, response: Request, **kwargs):
         product_name = response.meta['product_name']
+        product_brand = response.meta['product_brand']
+        product_model = response.meta['product_model']
+
         datas = json.loads(response.body)
         batch_results = datas.get('BatchedResults', {})
 
@@ -92,7 +117,11 @@ class SpiderSpider(scrapy.Spider):
 
             try:
                 item['review_id'] = results[i].get('Id', 'N/A')
+                item['product_website'] = 'mitre10_en'
+                item['product_type'] = 'N/A'
                 item['product_name'] = product_name
+                item['product_brand'] = product_brand
+                item['product_model'] = product_model
                 item['customer_name'] = results[i].get('UserNickname', 'N/A') if results[i].get('UserNickname', 'N/A') else 'Ananymous'
                 item['customer_rating'] = results[i].get('Rating', 'N/A')
                 item['customer_date'] = results[i].get('SubmissionTime', 'N/A')
@@ -102,11 +131,10 @@ class SpiderSpider(scrapy.Spider):
 
                 yield item
             except Exception as e:
-                print('Exception:', e)
                 break
 
         if (offset_number + limit_number) < total_number:
             offset_number += limit_number
             next_page = re.sub(r'limit.q0=\d+&offset.q0=\d+', f'limit.q0={30}&offset.q0={offset_number}', response.url)
-            yield Request(url=next_page, callback=self.review_single_parse, meta={'product_name': product_name})
+            yield Request(url=next_page, callback=self.review_single_parse, meta={'product_name': product_name, 'product_model':product_model, 'product_brand':product_brand})
 
