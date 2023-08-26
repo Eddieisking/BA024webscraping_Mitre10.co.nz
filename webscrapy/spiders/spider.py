@@ -20,14 +20,12 @@ class SpiderSpider(scrapy.Spider):
     def start_requests(self):
         # keywords = ['dewalt', 'Stanley', 'Black+Decker', 'Craftsman', 'Porter-Cable', 'Bostitch', 'Facom', 'MAC Tools', 'Vidmar', 'Lista', 'Irwin Tools', 'Lenox', 'Proto', 'CribMaster', 'Powers Fasteners', 'cub-cadet', 'hustler', 'troy-bilt', 'rover', 'BigDog Mower', 'MTD']
         exist_keywords = ['dewalt', 'stanley', 'Black+Decker']
+        
         # company = 'Stanley Black and Decker'
-
         # from search words to generate product_urls
         for keyword in exist_keywords:
             push_key = {'keyword': keyword}
-
             search_url = f'https://www.mitre10.co.nz/shop/search?text={keyword}&q={keyword}'
-
             yield Request(
                 url=search_url,
                 callback=self.parse,
@@ -45,39 +43,32 @@ class SpiderSpider(scrapy.Spider):
         keyword = kwargs['keyword']
         product_urls = [f'https://www.mitre10.co.nz/shop/search?q={keyword}&cmsPage=0&page={page}&inStockSelectedStore=false&inStockNationwide=false' for page
                         in range(0, pages)]
-
         for product_url in product_urls:
             yield Request(url=product_url, callback=self.product_parse)
 
     def product_parse(self, response: Request, **kwargs):
         product_list = response.xpath('/html/body//div[@class="container"]/div[@class="row"]//div[@unbxdattr="product"]')
-
         for product in product_list:
             product_name = product.xpath('.//span[@class="product--name"]/text()')[0].extract()
             product_sku = product.xpath('./@data-sku')[0].extract()
             # product_brand = product.xpath('.//span[@class="product--brand"]/text()')[0].extract()
             product_href = product.xpath('.//a[@class="product-link"]/@href')[0].extract()
             product_link = f'https://www.mitre10.co.nz' + product_href
-
             yield Request(url=product_link, callback=self.product_detail_parse, meta={'product_name': product_name, 'product_sku':product_sku})
 
     def product_detail_parse(self,  response: Request, **kwargs):
         product_name = response.meta['product_name']
         product_sku = response.meta['product_sku']
-
         product_detail = response.xpath('//div[@class="tabbody spec-body"]//div[@class="spec-item"]')
         product_brand = 'N/A'
         product_model = 'N/A'
-
         for product in product_detail:
             attr = product.xpath('./div[@class="attr"]/text()')[0].extract()
             value = product.xpath('./div[@class="value"]/text()')[0].extract()
-
             if attr == "Brand Name":
                 product_brand = value if value else 'N/A'
             elif attr == 'Model Number':
                 product_model = value if value else 'N/A'
-
         product_reviews_url = f'https://api.bazaarvoice.com/data/batch.json?passkey' \
                               f'=caWPwgJ2pghd4RhrgktdyVmJ4O5Znc6f8osLEjGCseuyY&apiversion=5.5&displaycode=14909' \
                               f'-en_nz&resource.q0=reviews&filter.q0=isratingsonly%3Aeq%3Afalse&filter.q0' \
@@ -87,17 +78,14 @@ class SpiderSpider(scrapy.Spider):
                               f'%2Ccomments&filter_reviews.q0=contentlocale%3Aeq%3Aen*%2Cen_NZ' \
                               f'&filter_reviewcomments.q0=contentlocale%3Aeq%3Aen*%2Cen_NZ&filter_comments.q0' \
                               f'=contentlocale%3Aeq%3Aen*%2Cen_NZ&limit.q0=8&offset.q0=0&limit_comments.q0=3 '
-
         yield Request(url=product_reviews_url, callback=self.review_single_parse, meta={'product_name': product_name, 'product_model':product_model, 'product_brand':product_brand})
 
     def review_single_parse(self, response: Request, **kwargs):
         product_name = response.meta['product_name']
         product_brand = response.meta['product_brand']
         product_model = response.meta['product_model']
-
         datas = json.loads(response.body)
         batch_results = datas.get('BatchedResults', {})
-
         offset_number = 0
         limit_number = 0
         total_number = 0
@@ -128,7 +116,6 @@ class SpiderSpider(scrapy.Spider):
                 item['customer_review'] = results[i].get('ReviewText', 'N/A')
                 item['customer_support'] = results[i].get('TotalPositiveFeedbackCount', 'N/A')
                 item['customer_disagree'] = results[i].get('TotalNegativeFeedbackCount', 'N/A')
-
                 yield item
             except Exception as e:
                 break
