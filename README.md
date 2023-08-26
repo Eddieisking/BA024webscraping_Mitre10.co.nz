@@ -33,7 +33,7 @@ The following technologies are employed in this project:
 
 To run this project on your local machine, follow these steps:
 
-1. Clone this repository: `git clone https://github.com/Eddieisking/BreadcrumbsBA024webscraping_Mitre10.co.nz.git`
+1. Clone this repository: `git clone https://github.com/Eddieisking/BA024webscraping_Mitre10.co.nz.git`
 2. Open it in your Python IDE such as Pycharm.
 3. Install the required dependencies: `pip install -r requirements.txt` at terminal.
 4. Change the code in the spider.py to choose the data you want to collect.
